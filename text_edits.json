@@ -31,10 +31,21 @@
     "txt-110": "Address",
     "txt-130": "Address",
     "txt-131": "Address",
-    "txt-66": "Claude Code 101 "
+    "txt-66": "Claude Code 101 ",
+    "txt-79": "Ig",
+    "txt-100": "",
+    "txt-121": "",
+    "txt-91": "",
+    "txt-90": "",
+    "txt-111": "",
+    "txt-112": "",
+    "txt-132": "",
+    "txt-133": ""
   },
   "sizes": {},
-  "links": {},
+  "links": {
+    "txt-91": ""
+  },
   "deleted": {
     "txt-91": true
   },
