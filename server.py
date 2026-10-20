@@ -15,6 +15,14 @@ class AutoSaveHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
+    def do_GET(self):
+        clean_path = self.path.split('?')[0].lstrip('/')
+        target_file = os.path.join(BASE_DIR, clean_path)
+        if clean_path and not os.path.exists(target_file):
+            query = self.path.split('?', 1)[1] if '?' in self.path else ''
+            self.path = '/index.html' + ('?' + query if query else '')
+        return super().do_GET()
+
     def do_POST(self):
         if self.path == '/api/auto-save':
             try:

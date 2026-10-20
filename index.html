@@ -2153,7 +2153,8 @@
     card.dataset.projectKey = card.getAttribute('href');
   });
 
-  function openProjectModal(href) {
+  function openProjectModal(href, opts) {
+    opts = opts || {};
     const d = caseData[href];
     if (!d) return;
     currentModalHref = href;
@@ -2168,8 +2169,11 @@
     renderModalVideo(href);
     renderModalBullets(href);
     modal.classList.add('open');
-    if (projectSlugs[href] && location.hash !== '#' + projectSlugs[href]) {
-      history.replaceState(null, '', location.pathname + location.search + '#' + projectSlugs[href]);
+    if (projectSlugs[href] && !opts.skipHistory) {
+      const target = '/' + projectSlugs[href];
+      if (location.pathname !== target) {
+        history.pushState({ shidyModal: href }, '', target + location.search);
+      }
     }
   }
 
@@ -2694,15 +2698,23 @@
     });
   });
 
-  // Slug URLs: each project card links to its own readable slug (e.g. #pertama-property)
+  // Slug URLs: each project card links to its clean path (e.g. /pertama-property)
   document.querySelectorAll('a.framer-JdhKQ').forEach((card) => {
     const key = card.dataset.projectKey;
-    if (key && projectSlugs[key]) card.setAttribute('href', '#' + projectSlugs[key]);
+    if (key && projectSlugs[key]) card.setAttribute('href', '/' + projectSlugs[key]);
   });
 
-  // URL rules: homepage stays clean ("/"). Only an open project popup gets a slug (e.g. /#pertama-property).
+  // URL rules:
+  // - Homepage stays clean ("/")
+  // - Opening a project modal updates URL to "/<slug>" (e.g. /pertama-property) without '#'
+  // - Closing modal reverts URL to "/"
+  // - Back/Forward buttons in browser open/close modal via popstate
+  // - Navigation links (#about, #contact, #works-section, #top) scroll smoothly without adding hash to URL
+
   function cleanUrl() {
-    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    if (location.pathname !== '/' || location.hash) {
+      history.replaceState(null, '', '/' + location.search);
+    }
   }
 
   function scrollToSection(id) {
@@ -2712,41 +2724,100 @@
     return false;
   }
 
-  function closeProjectModal() {
+  function closeProjectModal(opts) {
+    opts = opts || {};
     if (!modal.classList.contains('open')) return;
     modal.classList.remove('open');
-    if (currentModalHref && projectSlugs[currentModalHref] && location.hash === '#' + projectSlugs[currentModalHref]) {
-      cleanUrl();
+    if (!opts.skipHistory) {
+      const pathSlug = location.pathname.replace(/^\/+|\/+$/g, '');
+      if (pathSlug && slugToKey[pathSlug]) {
+        history.pushState(null, '', '/' + location.search);
+      } else if (location.hash) {
+        cleanUrl();
+      }
     }
   }
 
-  function openFromHash() {
-    const slug = decodeURIComponent((location.hash || '').replace(/^#/, ''));
-    if (!slug) return;
-    const key = slugToKey[slug];
-    if (key) {
-      openProjectModal(key);
+  function checkRoute() {
+    const pathSlug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+    const hashSlug = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+
+    // 1. Direct visit to clean path slug: /pertama-property
+    if (pathSlug && slugToKey[pathSlug]) {
+      openProjectModal(slugToKey[pathSlug], { skipHistory: true });
       const ws = document.getElementById('works-section');
       if (ws) ws.scrollIntoView();
-    } else {
-      // Old/section links like /#works-section, /#about -> scroll there, then clean the URL
-      scrollToSection(slug);
+      return;
+    }
+
+    // 2. Backward compatibility with old hash: /#pertama-property -> upgrade to /pertama-property
+    if (hashSlug && slugToKey[hashSlug]) {
+      history.replaceState({ shidyModal: slugToKey[hashSlug] }, '', '/' + hashSlug + location.search);
+      openProjectModal(slugToKey[hashSlug], { skipHistory: true });
+      const ws = document.getElementById('works-section');
+      if (ws) ws.scrollIntoView();
+      return;
+    }
+
+    // 3. Old section hash link: /#works-section, /#about, /#contact -> scroll and clean URL
+    if (hashSlug) {
+      scrollToSection(hashSlug);
       cleanUrl();
+      return;
+    }
+
+    // If on homepage and modal is open (e.g. from browser back button), close it
+    if (!pathSlug && modal.classList.contains('open')) {
+      closeProjectModal({ skipHistory: true });
     }
   }
-  window.addEventListener('hashchange', openFromHash);
-  setTimeout(openFromHash, 0);
+
+  // Handle browser Back / Forward buttons
+  window.addEventListener('popstate', () => {
+    const pathSlug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+    const key = slugToKey[pathSlug];
+    if (key) {
+      openProjectModal(key, { skipHistory: true });
+    } else {
+      closeProjectModal({ skipHistory: true });
+    }
+  });
+
+  window.addEventListener('hashchange', checkRoute);
+  setTimeout(checkRoute, 0);
 
   // Section navigation (#works-section, #about, #contact, #top, ...) scrolls smoothly without adding a slug
   document.addEventListener('click', (e) => {
-    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    const a = e.target.closest && e.target.closest('a[href^="#"], a[href^="/"]');
     if (!a || e.defaultPrevented) return;
     if (a.classList.contains('framer-JdhKQ') || a.hasAttribute('data-project-link')) return;
-    const id = decodeURIComponent(a.getAttribute('href').slice(1));
-    if (slugToKey[id]) return;
-    e.preventDefault();
-    scrollToSection(id);
-    cleanUrl();
+
+    const href = a.getAttribute('href');
+    if (!href) return;
+
+    // Check if it links to a project path e.g. /pertama-property
+    const cleanPath = href.replace(/^\/+|\/+$/g, '');
+    if (slugToKey[cleanPath]) {
+      e.preventDefault();
+      openProjectModal(slugToKey[cleanPath]);
+      return;
+    }
+
+    // Hash anchor like #works-section, #about, #contact, #top
+    if (href.startsWith('#')) {
+      const id = decodeURIComponent(href.slice(1));
+      if (slugToKey[id]) {
+        e.preventDefault();
+        openProjectModal(slugToKey[id]);
+        return;
+      }
+      e.preventDefault();
+      if (modal.classList.contains('open')) {
+        closeProjectModal({ skipHistory: true });
+      }
+      scrollToSection(id);
+      cleanUrl();
+    }
   });
 
   closeCaseBtn.addEventListener('click', closeProjectModal);
