@@ -2700,24 +2700,54 @@
     if (key && projectSlugs[key]) card.setAttribute('href', '#' + projectSlugs[key]);
   });
 
+  // URL rules: homepage stays clean ("/"). Only an open project popup gets a slug (e.g. /#pertama-property).
+  function cleanUrl() {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  function scrollToSection(id) {
+    if (!id || id === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+    const t = document.getElementById(id);
+    if (t) { t.scrollIntoView({ behavior: 'smooth' }); return true; }
+    return false;
+  }
+
   function closeProjectModal() {
+    if (!modal.classList.contains('open')) return;
     modal.classList.remove('open');
     if (currentModalHref && projectSlugs[currentModalHref] && location.hash === '#' + projectSlugs[currentModalHref]) {
-      history.replaceState(null, '', location.pathname + location.search + '#works-section');
+      cleanUrl();
     }
   }
 
   function openFromHash() {
     const slug = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+    if (!slug) return;
     const key = slugToKey[slug];
     if (key) {
       openProjectModal(key);
       const ws = document.getElementById('works-section');
       if (ws) ws.scrollIntoView();
+    } else {
+      // Old/section links like /#works-section, /#about -> scroll there, then clean the URL
+      scrollToSection(slug);
+      cleanUrl();
     }
   }
   window.addEventListener('hashchange', openFromHash);
   setTimeout(openFromHash, 0);
+
+  // Section navigation (#works-section, #about, #contact, #top, ...) scrolls smoothly without adding a slug
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented) return;
+    if (a.classList.contains('framer-JdhKQ') || a.hasAttribute('data-project-link')) return;
+    const id = decodeURIComponent(a.getAttribute('href').slice(1));
+    if (slugToKey[id]) return;
+    e.preventDefault();
+    scrollToSection(id);
+    cleanUrl();
+  });
 
   closeCaseBtn.addEventListener('click', closeProjectModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeProjectModal(); });
