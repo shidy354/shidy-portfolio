@@ -3,11 +3,27 @@
   "rewrites": [
     {
       "source": "/v2",
-      "destination": "/v2.html"
+      "destination": "/v2-home.html"
+    },
+    {
+      "source": "/v2/work",
+      "destination": "/v2-work.html"
+    },
+    {
+      "source": "/v2/about",
+      "destination": "/v2-about.html"
+    },
+    {
+      "source": "/v2/contact",
+      "destination": "/v2-contact.html"
+    },
+    {
+      "source": "/v2/project/(.*)",
+      "destination": "/v2-project.html"
     },
     {
       "source": "/v2/(.*)",
-      "destination": "/v2.html"
+      "destination": "/v2-project.html"
     },
     {
       "source": "/(.*)",

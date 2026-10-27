@@ -16,13 +16,21 @@ class AutoSaveHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
     def translate_custom_path(self):
-        clean_path = self.path.split('?')[0].lstrip('/')
+        clean_path = self.path.split('?')[0].strip('/')
         target_file = os.path.join(BASE_DIR, clean_path)
-        query = self.path.split('?', 1)[1] if '?' in self.path else ''
-        if clean_path == 'v2' or clean_path.startswith('v2/'):
-            self.path = '/v2.html' + ('?' + query if query else '')
+        query = ('?' + self.path.split('?', 1)[1]) if '?' in self.path else ''
+        if clean_path == 'v2':
+            self.path = '/v2-home.html' + query
+        elif clean_path == 'v2/work':
+            self.path = '/v2-work.html' + query
+        elif clean_path == 'v2/about':
+            self.path = '/v2-about.html' + query
+        elif clean_path == 'v2/contact':
+            self.path = '/v2-contact.html' + query
+        elif clean_path.startswith('v2/project/') or clean_path.startswith('v2/'):
+            self.path = '/v2-project.html' + query
         elif clean_path and not os.path.exists(target_file):
-            self.path = '/index.html' + ('?' + query if query else '')
+            self.path = '/index.html' + query
 
     def do_GET(self):
         self.translate_custom_path()
