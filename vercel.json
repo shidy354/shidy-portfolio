@@ -2,6 +2,14 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/v2",
+      "destination": "/v2.html"
+    },
+    {
+      "source": "/v2/(.*)",
+      "destination": "/v2.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
